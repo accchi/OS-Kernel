@@ -1,0 +1,26 @@
+/*
+ * main.cpp
+ *
+ *  Created on: May 10, 2018
+ *      Author: OS1
+ */
+#include <IOSTREAM.h>
+#include "List.h"
+
+
+int main(){
+	List list;
+	list.addToEnd(new PCB());
+	list.addToEnd(new PCB());
+	list.addToEnd(new PCB());
+	list.addToEnd(new PCB());
+	list.addToEnd(new PCB());
+	list.addToEnd(new PCB());
+	Elem* tmp
+
+
+	return 0;
+}
+
+
+

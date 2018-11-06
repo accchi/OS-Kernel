@@ -1,0 +1,51 @@
+01:29:40 **** Build of configuration Default for project provera ****
+make -f Makefile all 
+MAKE Version 3.6  Copyright (c) 1992 Borland International
+
+Available memory 33385584 bytes
+
+        configuration.xmi
+
+        bcc.exe -mh -v -eprovera.exe -IC:\bc31\include;..\; -LC:\bc31\lib;..\BCC; ..\*.cpp  ..\BCC\*.lib 
+
+Borland C++  Version 3.1 Copyright (c) 1992 Borland International
+..\bounded.cpp:
+..\event.cpp:
+Warning ..\idle.h 17: Functions containing while are not expanded inline
+..\intlock.cpp:
+..\ivtentry.cpp:
+Warning ..\idle.h 17: Functions containing while are not expanded inline
+..\kernel.cpp:
+Warning ..\idle.h 17: Functions containing while are not expanded inline
+..\kernelev.cpp:
+Warning ..\idle.h 17: Functions containing while are not expanded inline
+..\kernelse.cpp:
+..\kernelth.cpp:
+Warning ..\idle.h 17: Functions containing while are not expanded inline
+..\keyevent.cpp:
+Warning ..\idle.h 17: Functions containing while are not expanded inline
+Warning ..\keyevent.cpp 16: Condition is always false in function interrupt inter9(...)
+Warning ..\keyevent.cpp 16: Unreachable code in function interrupt inter9(...)
+..\list.cpp:
+..\listev.cpp:
+Warning ..\idle.h 17: Functions containing while are not expanded inline
+..\lists.cpp:
+..\listsem.cpp:
+..\main.cpp:
+Warning ..\idle.h 17: Functions containing while are not expanded inline
+Warning ..\main.cpp 31: Function should return a value in function main(int,char * *)
+..\pcb.cpp:
+..\semaphor.cpp:
+Warning ..\idle.h 17: Functions containing while are not expanded inline
+..\thread.cpp:
+Warning ..\idle.h 17: Functions containing while are not expanded inline
+..\user.cpp:
+Warning ..\idle.h 17: Functions containing while are not expanded inline
+Turbo Link  Version 5.1 Copyright (c) 1992 Borland International
+
+
+        Available memory 4026600
+
+
+01:29:41 Build Finished (took 1s.76ms)
+

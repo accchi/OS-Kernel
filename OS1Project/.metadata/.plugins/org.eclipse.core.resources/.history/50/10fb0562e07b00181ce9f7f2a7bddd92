@@ -1,0 +1,37 @@
+/*
+ * main.cpp
+ *
+ *  Created on: May 10, 2018
+ *      Author: OS1
+ */
+#include <IOSTREAM.h>
+#include "List.h"
+#include "PCB.h"
+#include "SrtdList.h"
+#include "Thread.h"
+#include "Global.h"
+#include "Semaphor.h"
+
+int userMain(int,char**);
+int syncPrintf(const char *format, ...);
+
+int main(int argc, char** argv){
+
+	Global::init();
+
+	//userMain(argc,argv);
+
+	//Thread t=new Thread();
+
+	//Thread::sleep(10);
+	//Semaphore s(2);
+	//s.wait(1);
+	//syncPrintf("2");
+	//s.signal();
+	Global::restore();
+	syncPrintf("HAPPY END\n");
+	return 0;
+}
+
+
+

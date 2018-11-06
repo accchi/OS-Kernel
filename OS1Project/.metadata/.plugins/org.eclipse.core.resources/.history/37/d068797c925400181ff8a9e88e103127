@@ -1,0 +1,21 @@
+/*
+ * PCB.cpp
+ *
+ *  Created on: May 10, 2018
+ *      Author: OS1
+ */
+
+#include "PCB.h"
+
+
+PCB::generator=0; // initializing generator for PCB ID
+
+
+PCB::PCB() {
+	ID=++generator;
+}
+
+PCB::~PCB() {
+	// TODO Auto-generated destructor stub
+}
+

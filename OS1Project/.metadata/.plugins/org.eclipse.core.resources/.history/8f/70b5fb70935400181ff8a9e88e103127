@@ -1,0 +1,28 @@
+/*
+ * List.h
+ *
+ *  Created on: May 10, 2018
+ *      Author: OS1
+ */
+
+#ifndef LIST_H_
+#define LIST_H_
+class PCB;
+
+class List {
+public:
+	struct Elem{ // node struct
+		Elem* next;
+		PCB* pcb;
+		Elem(PCB* p){ // constructor for node
+			pcb=p;
+			next=0;
+		}
+		Elem* first,*last;
+
+	};
+	List();
+	virtual ~List();
+};
+
+#endif /* LIST_H_ */

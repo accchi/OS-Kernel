@@ -1,0 +1,19 @@
+/*
+ * main.cpp
+ *
+ *  Created on: May 10, 2018
+ *      Author: OS1
+ */
+#include <IOSTREAM.h>
+
+
+
+int main(){
+
+	cout<<"aa";
+
+	return 0;
+}
+
+
+

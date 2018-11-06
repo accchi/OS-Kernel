@@ -1,0 +1,242 @@
+/*
+ * Global.cpp
+ *
+ *  Created on: May 13, 2018
+ *      Author: OS1
+ */
+
+#include "Global.h"
+#include "List.h"
+#include "PCB.h"
+#include "SCHEDULE.H"
+#include "Idle.h"
+#include "SrtdList.h"
+#include "dos.h"
+#include "IVTEntry.h"
+#include "EvList.h"
+#include "SemList.h"
+#include "KernelTh.h"
+//typedef void interrupt(*IntFun)(...); // pointer to interrupt functio used for setvect i getvect
+
+List* Global::PCBlist=0; // initializing PCB list
+EvList* Global::EVENTlist=0;
+SemList* Global::SEMlist=0;
+SysData* Global::data=0;
+KernelTh* Global::runningKernelTh=0;
+
+
+volatile int Global::requested_dispatch=0;
+volatile Time Global::counter=defaultTimeSlice;
+volatile int Global::locked=0;
+int Global::change=0;
+//void tick();
+unsigned tsp; // global for switch values
+unsigned tss;
+unsigned tbp;
+unsigned tcx;
+unsigned tdx;
+
+void interrupt Global::timer(...){
+	//if(!requested_dispatch)
+		//tick();
+#ifndef BCC_BLOCK_IGNORE
+	asm int 60h; // if interrupt was timer interrupt we need to call old routine
+#endif
+
+	PCB::sleeping->update(); // update all that are sleeping
+	if(PCB::running->timeSlice==0){ // case when timeSlice==0 then we can change context only if we asked for it
+		return;
+	}
+	if(counter>0)
+		counter--;
+
+	if (counter == 0) {
+		if(Global::locked==1){
+			Global::change=1;
+			return;
+		}
+#ifndef BCC_BLOCK_IGNORE
+			asm {
+				mov tsp, sp // save sp
+				mov tss, ss
+				mov tbp, bp
+			}
+#endif
+
+			PCB::running->sp = tsp; // save
+			PCB::running->ss = tss;
+			PCB::running->bp = tbp;
+
+			if(PCB::running->state==PCB::READY) // if running is still READY put it back in scheduler
+				Scheduler::put((PCB*)PCB::running);
+			PCB::running= (volatile PCB*)Scheduler::get();	// Scheduler
+
+			if(PCB::running==0) // case when scheduler is empty
+				PCB::running=(volatile PCB*)idle->getMyPCB(); // need cast in volatile PCB*
+
+			tsp = PCB::running->sp;
+			tss = PCB::running->ss;
+			tbp = PCB::running->bp;
+
+			counter = PCB::running->timeSlice;
+#ifndef BCC_BLOCK_IGNORE
+			asm {
+				mov sp, tsp   // restore sp
+				mov ss, tss
+				mov bp, tbp
+			}
+#endif
+	}
+}
+
+void interrupt Global::syscall(...){ // change context to kernel 'thread'
+#ifndef BCC_BLOCK_IGNORE
+			asm {
+				mov tsp, sp // save sp
+				mov tss, ss
+				mov tbp, bp
+				mov tcx, cx
+				mov tdx, dx
+			}
+			Global::data=(SysData*)MK_FP(tcx,tdx);
+#endif
+
+			PCB::running->sp = tsp; // save
+			PCB::running->ss = tss;
+			PCB::running->bp = tbp;
+
+			tsp = Global::runningKernelTh->sp;
+			tss = Global::runningKernelTh->ss;
+			tbp = Global::runningKernelTh->bp;
+
+
+#ifndef BCC_BLOCK_IGNORE
+			asm {
+				mov sp, tsp   // restore sp
+				mov ss, tss
+				mov bp, tbp
+			}
+#endif
+}
+
+void interrupt Global::backtouser(...){ // change context to user thread
+#ifndef BCC_BLOCK_IGNORE
+			asm {
+				mov tsp, sp // save sp
+				mov tss, ss
+				mov tbp, bp
+			}
+#endif
+
+			Global::runningKernelTh->sp = tsp; // save
+			Global::runningKernelTh->ss = tss;
+			Global::runningKernelTh->bp = tbp;
+
+
+			tsp = PCB::running->sp;
+			tss = PCB::running->ss;
+			tbp = PCB::running->bp;
+
+#ifndef BCC_BLOCK_IGNORE
+			asm {
+				mov sp, tsp   // restore sp
+				mov ss, tss
+				mov bp, tbp
+			}
+#endif
+
+
+			if(Global::requested_dispatch==1 || Global::change==1){ // if requested dispatch then change context again
+#ifndef BCC_BLOCK_IGNORE
+				asm {
+					mov tsp, sp // save sp
+					mov tss, ss
+					mov tbp, bp
+				}
+#endif
+
+				PCB::running->sp = tsp; // save
+				PCB::running->ss = tss;
+				PCB::running->bp = tbp;
+
+				if(PCB::running->state==PCB::READY) // if running is still READY put it back in scheduler
+					Scheduler::put((PCB*)PCB::running);
+				PCB::running= (volatile PCB*)Scheduler::get();	// Scheduler
+
+				if(PCB::running==0) // case when scheduler is empty
+					PCB::running=(volatile PCB*)idle->getMyPCB(); // need cast in volatile PCB*
+
+				tsp = PCB::running->sp;
+				tss = PCB::running->ss;
+				tbp = PCB::running->bp;
+
+				Global::counter =PCB::running->timeSlice;
+#ifndef BCC_BLOCK_IGNORE
+				asm {
+					mov sp, tsp   // restore sp
+					mov ss, tss
+					mov bp, tbp
+				}
+#endif
+				Global::requested_dispatch = 0;
+				Global::change=0;
+			}
+
+}
+
+IntFun Global::oldTimer=0;
+Idle* Global::idle=0; // initializing idle
+
+void Global::init(){ // initialize system
+#ifndef BCC_BLOCK_IGNORE
+	asm{
+		pushf
+		cli
+	}
+	oldTimer=getvect(0x08); // getting pointer to old routine
+	setvect(0x60,oldTimer); // setting old routine to new place
+	setvect(0x61,syscall); // set sys call to empty entry; 61h FREE ENTRY
+	setvect(0x63,backtouser); // set backtouser to EMPTY entry; 63h FREE ENTRY
+	setvect(0x08,timer); // setting new routine to old place      MOZZZZDAAAAAAAAA PUCA OVDE ZBOG ADRESE TIMERA
+#endif
+	Global::runningKernelTh=new KernelTh();
+	Global::EVENTlist= new EvList();
+	Global::SEMlist=new SemList();
+	Global::PCBlist=new List(); // creating Global list of PCBs
+	PCB::running=(volatile PCB*)new PCB(); // create main context with empty stack
+	PCB::sleeping=new SrtdList(); // creating list for sleeping
+	Global::idle=new Idle(); // creating idle thread
+	PCB::onlytwo=new List();
+	asm popf
+}
+
+void Global::restore(){ // backup of system
+#ifndef BCC_BLOCK_IGNORE
+	asm{
+		pushf
+		cli
+	}
+	oldTimer=getvect(0x60);
+	setvect(0x08,oldTimer);
+#endif
+	delete idle; // deleting idle thread
+	idle=0;
+	delete PCB::sleeping;
+	PCB::sleeping=0;
+	delete Global::PCBlist;
+	Global::PCBlist=0;
+	delete Global::EVENTlist;
+	Global::EVENTlist=0;
+	delete Global::SEMlist;
+	Global::SEMlist=0;
+	delete Global::runningKernelTh;
+	Global::runningKernelTh=0;
+	for(int i=0;i<256;i++) // free all ivtentries
+		if(IVTEntry::IVTEntries[i]!=0){
+			delete IVTEntry::IVTEntries[i];
+			IVTEntry::IVTEntries[i]=0;
+		}
+#ifndef BCC_BLOCK_IGNORE
+	asm popf
+#endif
+}

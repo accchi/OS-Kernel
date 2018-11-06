@@ -1,0 +1,176 @@
+/*
+ * Thread.cpp
+ *
+ *  Created on: May 10, 2018
+ *      Author: OS1
+ */
+
+#include "Thread.h"
+#include "PCB.h"
+#include "Global.h"
+#include "List.h"
+#include "dos.h"
+#include "SCHEDULE.H"
+
+unsigned ccx;
+unsigned ddx;
+int syncPrintf(const char *format, ...);
+ID Thread::getId(){
+	return myPCB;
+}
+
+void dispatch(){
+	SysData d;
+	d.work=SysData::DISPATCH;
+#ifndef BCC_BLOCK_IGNORE
+	ccx=FP_SEG(&d);
+	ddx=FP_OFF(&d);
+	asm{
+		push cx
+		push dx
+		mov cx,ccx
+		mov dx,ddx
+		int 61h
+	}
+#endif
+	asm{
+		pop dx
+		pop cx
+	}
+
+}
+
+Thread::Thread(StackSize stackSize, Time timeSlice){
+	SysData d;
+	d.work=SysData::CONSTR_THREAD;
+	d.stacksize=stackSize;
+	d.time=timeSlice;
+	d.thread=this;
+
+	#ifndef BCC_BLOCK_IGNORE
+		ccx=FP_SEG(&d);
+		ddx=FP_OFF(&d);
+		asm{
+			push cx
+			push dx
+			mov cx,ccx
+			mov dx,ddx
+			int 61h
+		}
+	#endif
+		asm{
+			pop dx
+			pop cx
+		}
+}
+
+void Thread::start(){
+	SysData d;
+	d.work=SysData::START_THREAD;
+	d.id=myPCB;
+#ifndef BCC_BLOCK_IGNORE
+	ccx=FP_SEG(&d);
+	ddx=FP_OFF(&d);
+	asm{
+		push cx
+		push dx
+		mov cx,ccx
+		mov dx,ddx
+		int 61h
+	}
+#endif
+	//Global::PCBlist->getByID(myPCB)->start();
+	asm{
+		pop dx
+		pop cx
+	}
+}
+
+void Thread::waitToComplete(){
+	SysData d;
+	d.work=SysData::WAIT_TO_COMPLETE_THREAD;
+	d.id=myPCB;
+#ifndef BCC_BLOCK_IGNORE
+	ccx=FP_SEG(&d);
+	ddx=FP_OFF(&d);
+	asm{
+		push cx
+		push dx
+		mov cx,ccx
+		mov dx,ddx
+		int 61h
+	}
+#endif
+	asm{
+		pop dx
+		pop cx
+	}
+}
+
+void Thread::sleep(Time timeToSleep){
+	SysData d;
+	d.work=SysData::SLEEP_THREAD;
+	d.time=timeToSleep;
+#ifndef BCC_BLOCK_IGNORE
+	ccx=FP_SEG(&d);
+	ddx=FP_OFF(&d);
+	asm{
+		push cx
+		push dx
+		mov cx,ccx
+		mov dx,ddx
+		int 61h
+	}
+#endif
+	asm{
+		pop dx
+		pop cx
+	}
+}
+
+Thread::~Thread(){
+	waitToComplete();
+	SysData d;
+	d.work=SysData::DESTR_THREAD;
+	d.id=myPCB;
+#ifndef BCC_BLOCK_IGNORE
+	ccx=FP_SEG(&d);
+	ddx=FP_OFF(&d);
+	asm{
+		push cx
+		push dx
+		mov cx,ccx
+		mov dx,ddx
+		int 61h
+	}
+#endif
+	asm{
+		pop dx
+		pop cx
+	}
+}
+
+void Thread::wrapper(Thread* running){ // wrapper fun for calling run; for initializing stack of PCB
+	running->run();
+	// run throught list and put all waiting threads in scheduler and make them ready
+#ifndef BCC_BLOCK_IGNORE
+	asm{
+		pushf
+		cli
+	}
+#endif
+	while(Global::PCBlist->getByID(running->myPCB)->waiting->getNumOfMem()!=0){ // until there is an
+		PCB* pcb=Global::PCBlist->getByID(running->myPCB)->waiting->takeFirst();
+		pcb->state=PCB::READY;
+		Scheduler::put((PCB*)pcb);
+	}
+	Global::PCBlist->getByID(running->myPCB)->state=PCB::FINISHED; // end
+	PCB* novi=PCB::onlytwo->takeFirst();
+	if(novi!=0){
+		novi->state=PCB::READY;
+		Scheduler::put(novi);
+	}
+	asm popf
+	dispatch();
+
+}

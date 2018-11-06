@@ -1,0 +1,18 @@
+/*
+ * List.cpp
+ *
+ *  Created on: May 10, 2018
+ *      Author: OS1
+ */
+
+#include "List.h"
+
+List::List() {
+	// TODO Auto-generated constructor stub
+
+}
+
+List::~List() {
+	// TODO Auto-generated destructor stub
+}
+

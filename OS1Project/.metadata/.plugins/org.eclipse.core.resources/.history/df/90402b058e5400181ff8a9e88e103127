@@ -1,0 +1,17 @@
+/*
+ * PCB.h
+ *
+ *  Created on: May 10, 2018
+ *      Author: OS1
+ */
+
+#ifndef PCB_H_
+#define PCB_H_
+
+class PCB {
+public:
+	PCB();
+	virtual ~PCB();
+};
+
+#endif /* PCB_H_ */

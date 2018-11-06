@@ -1,0 +1,24 @@
+/*
+ * List.cpp
+ *
+ *  Created on: May 10, 2018
+ *      Author: OS1
+ */
+
+#include "List.h"
+
+List::List() {
+	first=last=0; // initialize all fields
+	numOfMem=0;
+}
+
+List::~List() {
+	Elem*tmp=first;
+	while(first){ // iterating through list and deleting all nodes
+		first=first->next;
+		delete tmp;
+		tmp=tmp->next;
+	}
+	first=last=0; // leave list in cool state :)
+}
+

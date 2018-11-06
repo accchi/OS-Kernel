@@ -1,0 +1,91 @@
+/*
+ * PCB.cpp
+ *
+ *  Created on: May 10, 2018
+ *      Author: OS1
+ */
+
+#include "PCB.h"
+#include "List.h"
+#include "SCHEDULE.H"
+#include "SrtdList.h"
+#include "Global.h"
+#include <dos.h> // needed for FP_SEG and FP_OFF
+
+int PCB::generator=0; // initializing generator for PCB ID
+volatile PCB* PCB::running=0; // initializing running pointer
+SrtdList* PCB::sleeping=0; // created in Global.cpp in init
+
+void PCB::start(){ // if state is created that means this is first time we call start then make it ready and put it in scheduler
+	if(state==CREATED){
+		state=READY;
+		Scheduler::put(this);
+	}
+}
+
+PCB::PCB(StackSize stackSize, Time tSlice, Thread* my) {
+	// stackSize must be less than 65535 B
+	id=++generator;
+	waiting=new List(); // creating new list for waiting threads/pcb
+	state=CREATED; // init state of thread/pcb
+	timeSlice=tSlice; // initialize timeSlice
+	myThread=my; // initialize thread for pcb
+	if(myThread!=0)
+		my->myPCB=id;
+	stackSize/=sizeof(unsigned); // because one field in stack is unsigned and unsigned is 2B
+	stack= new unsigned[stackSize]; // init array for stack
+	stack[stackSize-5]=0x200; // PSW-> I flag = 1
+#ifndef BCC_BLOCK_IGNORE
+	stack[stackSize-1]=FP_SEG(myThread);
+	stack[stackSize-2]=FP_OFF(myThread);
+	stack[stackSize-6]=FP_SEG(Thread::wrapper); // PC
+	stack[stackSize-7]=FP_OFF(Thread::wrapper); // later we need to put here parametar Thread*
+	ss=FP_SEG(stack+stackSize-16); // stack pointer need to points to the -14 location
+	sp=FP_OFF(stack+stackSize-16);
+#endif
+	bp=sp;
+	Global::PCBlist->addToEnd(this);
+}
+
+PCB::PCB(){ // constructor for main PCB
+	state=READY;
+	id=++generator;
+	myThread=0;
+	waiting=new List();
+	timeSlice=defaultTimeSlice;
+	stack=new unsigned[defaultStackSize/sizeof(unsigned)];
+#ifndef BCC_BLOCK_IGNORE
+	ss=FP_SEG(stack+defaultStackSize/sizeof(unsigned));
+	sp=FP_OFF(stack+defaultStackSize/sizeof(unsigned));
+#endif
+	bp=sp;
+	Global::PCBlist->addToEnd(this); // put main PCB in GLOBAL PCB list; Other PCBs gets added in Thread; this one doesnt have Thread
+}
+
+void PCB::waitToComplete(){ // thread cant wait on her own
+	if(state!=FINISHED && id!=1 && id!=2){ // if state is finished we dont need to wait for anything; MAIN ID=1; IDLE ID=2; CANT WAIT ON THAT 2 THREADS
+		running->state=BLOCKED; // chanege state to the blocked
+		waiting->addToEnd((PCB*)running); // put running pcb in caller waiting list
+		Global::requested_dispatch=1;
+	}
+}
+
+void PCB::sleep(Time timeToSleep){
+	if(timeToSleep!=0){ // if time==0 just dispatch
+		running->state=BLOCKED;
+		sleeping->insert((PCB*)running,timeToSleep);
+	}
+	Global::requested_dispatch=1; // instead of dispatch
+}
+
+PCB::~PCB() {
+	// CALL WAIT TO COMPLETE AND DESTROY STACK AND WAITING ----> CALLED IN THREAD INSTEAD!!
+	delete[] stack;
+	delete waiting;
+	Global::PCBlist->takeByID(id); // get out that pcb from global list!
+	stack=0;
+	waiting=0;
+	state=FINISHED;
+}
+
+
